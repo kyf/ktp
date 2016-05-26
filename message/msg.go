@@ -17,7 +17,11 @@ type MessageType byte
 type UID [12]byte
 
 func (uid UID) String() string {
-	return fmt.Sprintf("%x", string(uid[:]))
+	return fmt.Sprintf("%x", uid[:])
+}
+
+func UUID() UID {
+	return uuid()
 }
 
 type Message struct {
