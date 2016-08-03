@@ -13,6 +13,14 @@ type Client struct {
 	conn net.Conn
 }
 
+func (c *Client) Setuid(uid string) {
+	_uid := [12]byte{}
+	for index, _ := range _uid {
+		_uid[index] = uid[index]
+	}
+	c.uid = message.UID(_uid)
+}
+
 func NewClient(target string) (*Client, error) {
 	conn, err := net.DialTimeout("tcp", target, time.Second*30)
 	if err != nil {
@@ -43,8 +51,8 @@ func (c *Client) Connect() {
 	c.conn.Write(message.EncodeMessage(m))
 }
 
-func (c *Client) Send(content string) {
-	m := message.Message{message.UUID(), message.Push, c.uid, message.UUID(), []byte(content)}
+func (c *Client) Send(content string, to message.UID) {
+	m := message.Message{message.UUID(), message.Push, c.uid, to, []byte(content)}
 	c.conn.Write(message.EncodeMessage(m))
 }
 

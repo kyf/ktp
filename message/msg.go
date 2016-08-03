@@ -95,6 +95,27 @@ const (
 	Disconn
 )
 
+func (this MessageType) String() string {
+	switch this {
+	case Connect:
+		return "Connect"
+	case ConnAck:
+		return "ConnAck"
+	case Ping:
+		return "Ping"
+	case Pong:
+		return "Pong"
+	case Push:
+		return "Push"
+	case Receive:
+		return "Receive"
+	case Disconn:
+		return "Disconn"
+	}
+
+	return ""
+}
+
 func machineId() []byte {
 	var id []byte = make([]byte, 3)
 	hostname, err := os.Hostname()

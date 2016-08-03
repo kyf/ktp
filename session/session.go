@@ -101,14 +101,16 @@ func handleConn(conn net.Conn, s *Server) {
 
 		m := message.DecodeMessage(buf[:num])
 
-		s.logger.Printf("receive data %v [%s]", m.Mtype, m.Content)
-
 		switch m.Mtype {
 		case message.Pong:
 
 		case message.Disconn:
 			OnMap.Remove(m.From)
 		default:
+			if client, ok := OnMap.clients[string(m.To[:])]; ok {
+				client.conn.Write(message.EncodeMessage(m))
+				s.logger.Printf("receive data %v [%s], from:[%v], to:[%v]", m.Mtype, m.Content, m.From, m.To)
+			}
 		}
 
 		//s.logger.Printf("receive data is %v", buf[:num])
