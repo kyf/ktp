@@ -24,6 +24,10 @@ func UUID() UID {
 	return uuid()
 }
 
+func EmptyUUID() UID {
+	return UID([12]byte{})
+}
+
 type Message struct {
 	Identifier UID
 	Mtype      MessageType
