@@ -1,10 +1,12 @@
 package session
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -31,11 +33,50 @@ func NewServer(addr string, logger *log.Logger) *Server {
 	return &Server{addr: addr, logger: logger}
 }
 
+func responseJson(params ...interface{}) []byte {
+	result := map[string]interface{}{
+		"status":  true,
+		"message": "success",
+	}
+
+	if len(params) > 0 {
+		result["status"] = params[0]
+	}
+
+	if len(params) > 1 {
+		result["message"] = params[1]
+	}
+
+	if len(params) > 2 {
+		result["data"] = params[2]
+	}
+
+	data, _ := json.Marshal(result)
+	return data
+}
+
 func httponline() {
 	http.HandleFunc("/online", func(w http.ResponseWriter, r *http.Request) {
 		for _, client := range OnMap.clients {
 			w.Write([]byte(fmt.Sprintf("%s<br>\n", client.uid)))
 		}
+	})
+	http.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request) {
+		r.ParseForm()
+		username := r.Form.Get("username")
+		password := r.Form.Get("password")
+
+		if len(username) == 0 || len(password) == 0 {
+			w.Write(responseJson(false, "用户名或密码错误"))
+			return
+		}
+
+		if !strings.EqualFold("kyf", username) || !strings.EqualFold("keyongfeng", password) {
+			w.Write(responseJson(false, "用户名或密码错误"))
+			return
+		}
+
+		w.Write(responseJson())
 	})
 	log.Print(http.ListenAndServe(":1233", nil))
 }
