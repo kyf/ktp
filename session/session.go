@@ -4,13 +4,21 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/http"
 	"sync"
+	"time"
 
 	"github.com/kyf/ktp/message"
 )
 
 const (
 	BUF_SIZE = 2 << 17 //1024 * 256
+)
+
+var (
+	PongWait time.Duration = time.Second * 10
+
+	PingPeriod time.Duration = (PongWait * 8) / 10
 )
 
 type Server struct {
@@ -23,12 +31,23 @@ func NewServer(addr string, logger *log.Logger) *Server {
 	return &Server{addr: addr, logger: logger}
 }
 
+func httponline() {
+	http.HandleFunc("/online", func(w http.ResponseWriter, r *http.Request) {
+		for _, client := range OnMap.clients {
+			w.Write(client.uid[:])
+		}
+	})
+	log.Print(http.ListenAndServe(":1233", nil))
+}
+
 func (s *Server) Run() error {
 	var err error
 	s.listener, err = net.Listen("tcp", s.addr)
 	if err != nil {
 		return err
 	}
+
+	go httponline()
 
 	defer s.listener.Close()
 	s.logger.Printf("server has listen %s", s.addr)
@@ -71,8 +90,25 @@ func registerMap(conn net.Conn, uid message.UID) {
 	OnMap.Add(conn, uid)
 }
 
+func heartbeat(conn net.Conn, s *Server, from, to message.UID) {
+	ticker := time.NewTicker(PingPeriod)
+	for {
+		select {
+		case <-ticker.C:
+			m := message.Message{message.UUID(), message.Ping, from, to, nil}
+			conn.Write(message.EncodeMessage(m))
+		}
+	}
+}
+
 func handleConn(conn net.Conn, s *Server) {
-	defer conn.Close()
+	var connFrom *message.UID
+	defer func() {
+		conn.Close()
+		if connFrom != nil {
+			OnMap.Remove(*connFrom)
+		}
+	}()
 
 	//auth
 	//connect msgtype
@@ -86,10 +122,12 @@ func handleConn(conn net.Conn, s *Server) {
 
 	//register client
 	registerMap(conn, connMsg.From)
+	connFrom = &connMsg.From
 
 	//heartbeat receive send
-	//go heartbeat(conn, s)
-	//disconnect
+	go heartbeat(conn, s, connMsg.From, connMsg.To)
+
+	conn.SetReadDeadline(time.Now().Add(PongWait))
 
 	buf := make([]byte, BUF_SIZE)
 	for {
@@ -101,15 +139,16 @@ func handleConn(conn net.Conn, s *Server) {
 
 		m := message.DecodeMessage(buf[:num])
 
+		s.logger.Printf("receive data %v [%s], from:[%v], to:[%v]", m.Mtype, m.Content, m.From, m.To)
 		switch m.Mtype {
 		case message.Pong:
-
+			conn.SetReadDeadline(time.Now().Add(PongWait))
 		case message.Disconn:
 			OnMap.Remove(m.From)
 		default:
 			if client, ok := OnMap.clients[string(m.To[:])]; ok {
+				m.Mtype = message.Receive
 				client.conn.Write(message.EncodeMessage(m))
-				s.logger.Printf("receive data %v [%s], from:[%v], to:[%v]", m.Mtype, m.Content, m.From, m.To)
 			}
 		}
 

@@ -42,6 +42,10 @@ func (c *Client) Reader(readChannel chan<- message.Message) {
 		}
 		body := buf[:num]
 		msg := message.DecodeMessage(body)
+		if msg.Mtype == message.Ping {
+			m := message.Message{message.UUID(), message.Pong, c.uid, message.EmptyUUID(), nil}
+			c.conn.Write(message.EncodeMessage(m))
+		}
 		readChannel <- msg
 	}
 }
