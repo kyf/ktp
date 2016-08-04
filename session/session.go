@@ -34,7 +34,7 @@ func NewServer(addr string, logger *log.Logger) *Server {
 func httponline() {
 	http.HandleFunc("/online", func(w http.ResponseWriter, r *http.Request) {
 		for _, client := range OnMap.clients {
-			w.Write(client.uid[:])
+			w.Write([]byte(fmt.Sprintf("%s<br>\n", client.uid)))
 		}
 	})
 	log.Print(http.ListenAndServe(":1233", nil))
