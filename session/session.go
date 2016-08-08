@@ -61,6 +61,14 @@ func httponline() {
 			w.Write([]byte(fmt.Sprintf("%s<br>\n", client.uid)))
 		}
 	})
+	http.HandleFunc("/online/list", func(w http.ResponseWriter, r *http.Request) {
+		data := make([]string, 0)
+		for _, client := range OnMap.clients {
+			data = append(data, client.uid.String())
+		}
+		result, _ := json.Marshal(data)
+		w.Write(result)
+	})
 	http.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		username := r.Form.Get("username")
